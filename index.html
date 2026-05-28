@@ -253,22 +253,27 @@
   }
 
   /* Mobile D-Pad */
-  #dpad {
+  #dpad-area {
     display: none;
-    width: 180px;
-    height: 180px;
-    position: relative;
     margin-top: 12px;
+    align-items: center;
+    gap: 16px;
+  }
+
+  #dpad {
+    width: 210px;
+    height: 210px;
+    position: relative;
   }
 
   .dpad-btn {
     position: absolute;
-    width: 56px;
-    height: 56px;
+    width: 66px;
+    height: 66px;
     background: rgba(51,255,51,0.12);
     border: 1px solid rgba(51,255,51,0.4);
     color: #33ff33;
-    font-size: 20px;
+    font-size: 24px;
     display: flex;
     justify-content: center;
     align-items: center;
@@ -281,19 +286,47 @@
     background: rgba(51,255,51,0.35);
   }
 
-  .dpad-up    { top: 0;   left: 50%; transform: translateX(-50%); border-radius: 8px 8px 0 0; }
-  .dpad-down  { bottom: 0; left: 50%; transform: translateX(-50%); border-radius: 0 0 8px 8px; }
-  .dpad-left  { left: 0;  top: 50%; transform: translateY(-50%); border-radius: 8px 0 0 8px; }
-  .dpad-right { right: 0; top: 50%; transform: translateY(-50%); border-radius: 0 8px 8px 0; }
+  .dpad-up    { top: 0;   left: 50%; transform: translateX(-50%); border-radius: 10px 10px 0 0; }
+  .dpad-down  { bottom: 0; left: 50%; transform: translateX(-50%); border-radius: 0 0 10px 10px; }
+  .dpad-left  { left: 0;  top: 50%; transform: translateY(-50%); border-radius: 10px 0 0 10px; }
+  .dpad-right { right: 0; top: 50%; transform: translateY(-50%); border-radius: 0 10px 10px 0; }
 
   .dpad-center {
     position: absolute;
     top: 50%; left: 50%;
     transform: translate(-50%, -50%);
-    width: 56px; height: 56px;
+    width: 66px; height: 66px;
     background: rgba(51,255,51,0.06);
     border: 1px solid rgba(51,255,51,0.2);
-    border-radius: 4px;
+    border-radius: 5px;
+  }
+
+  #ghost-btn {
+    display: none;
+    width: 66px;
+    height: 66px;
+    background: rgba(100,200,255,0.15);
+    border: 1px solid rgba(100,200,255,0.5);
+    color: #64c8ff;
+    font-family: 'Press Start 2P', monospace;
+    font-size: 20px;
+    border-radius: 10px;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+    position: relative;
+  }
+
+  #ghost-btn:active {
+    background: rgba(100,200,255,0.4);
+  }
+
+  #ghost-btn .ghost-count {
+    position: absolute;
+    bottom: 4px;
+    right: 6px;
+    font-size: 9px;
+    color: #64c8ff;
   }
 
   #footer {
@@ -335,7 +368,7 @@
   }
 
   @media (pointer: coarse) {
-    #dpad { display: block; }
+    #dpad-area { display: flex; }
   }
 </style>
 </head>
@@ -383,12 +416,18 @@
     <div id="rewind-indicator">◀◀ 回溯</div>
   </div>
 
-  <div id="dpad">
-    <div class="dpad-btn dpad-up" data-dir="up">▲</div>
-    <div class="dpad-btn dpad-down" data-dir="down">▼</div>
-    <div class="dpad-btn dpad-left" data-dir="left">◀</div>
-    <div class="dpad-btn dpad-right" data-dir="right">▶</div>
-    <div class="dpad-center"></div>
+  <div id="dpad-area">
+    <div id="dpad">
+      <div class="dpad-btn dpad-up" data-dir="up">▲</div>
+      <div class="dpad-btn dpad-down" data-dir="down">▼</div>
+      <div class="dpad-btn dpad-left" data-dir="left">◀</div>
+      <div class="dpad-btn dpad-right" data-dir="right">▶</div>
+      <div class="dpad-center"></div>
+    </div>
+    <button id="ghost-btn">
+      G
+      <span class="ghost-count" id="ghost-count"></span>
+    </button>
   </div>
 
   <div id="footer">
@@ -411,6 +450,8 @@ const modeDisplay = document.getElementById('mode-display');
 const foodDisplay = document.getElementById('food-display');
 const finalScore = document.getElementById('final-score');
 const rewindIndicator = document.getElementById('rewind-indicator');
+const ghostBtn = document.getElementById('ghost-btn');
+const ghostCount = document.getElementById('ghost-count');
 
 const MODE_NAMES = {
   1: '故障像素+时间豆',
@@ -568,6 +609,13 @@ function updateHUD() {
   } else {
     foodDisplay.textContent = timeBean ? '时间豆!' : '';
   }
+  // Ghost button visibility
+  if ((mode === 2 || mode === 3) && upgrades.ghostUses > 0) {
+    ghostBtn.style.display = 'block';
+    ghostCount.textContent = `x${upgrades.ghostUses}`;
+  } else {
+    ghostBtn.style.display = 'none';
+  }
 }
 
 // ─── Input (Keyboard) ───
@@ -617,6 +665,19 @@ document.querySelectorAll('.dpad-btn').forEach(btn => {
   btn.addEventListener('touchstart', handler, { passive: false });
   btn.addEventListener('mousedown', handler);
 });
+
+// ─── Input (Ghost Button for Mobile) ───
+function triggerGhost() {
+  if (gameState !== 'PLAYING') return;
+  if ((mode === 2 || mode === 3) && upgrades.ghostUses > 0 && !ghostActive) {
+    upgrades.ghostUses--;
+    ghostActive = true;
+    ghostTimer = 3000;
+    updateHUD();
+  }
+}
+ghostBtn.addEventListener('touchstart', (e) => { e.preventDefault(); triggerGhost(); }, { passive: false });
+ghostBtn.addEventListener('mousedown', (e) => { e.preventDefault(); triggerGhost(); });
 
 // ─── Input (Swipe on Canvas) ───
 let touchStartX = 0, touchStartY = 0;
